@@ -1,0 +1,35 @@
+// @import '~bootstrap/scss/bootstrap'
+
+// USER VARIABLES SECTION
+$accent: #009688 // Accent Color
+$fontsize: 14px // Body Font Size
+$textcolor: #333 // Text Color
+$system: -apple-system, BlinkMacSystemFont, Arial, sans-serif // System Font Family
+
+$ProximaNovaRegular: ProximaNovaRegular, sans-serif // ProximaNovaRegular Font Family
+$ProximaNovaBold: ProximaNovaBold, sans-serif // ProximaNovaRegular Font Family
+
+$RobotoBold: RobotoBold, sans-serif // RobotoBold Font Family
+$RobotoRegular: RobotoRegular
+
+// Bootstrap compatible gutter variable => $gutter
+$grid-gutter-width: 20px
+$gutter: $grid-gutter-width
+
+// FONTS LOAD SECTION
+@mixin font($fname, $fstyle, $fweight, $furl)
+  @font-face
+    font-family: $fname
+    font-style: $fstyle
+    font-weight: $fweight
+    // font-display: swap // Uncomment to initially display system fonts
+    src: local($fname), url($furl) format('woff2')
+
+@include font('ProximaNovaRegular', normal, 700, './fonts/ProximaNovaRegular/ProximaNovaRegular.woff')
+@include font('ProximaNovaBold', normal, 700, './fonts/ProximaNovaBold/ProximaNovaBold.woff')
+
+@include font('RobotoBold', normal, 700, './fonts/RobotoBold/RobotoBold.woff')
+@include font('RobotoRegular', normal, 700, './fonts/RobotoRegular/RobotoRegular.woff')
+
+html
+  overflow: auto
