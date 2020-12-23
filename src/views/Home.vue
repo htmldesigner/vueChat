@@ -1,7 +1,20 @@
 <template>
  <v-app id="inspire" v-if="isUserLoggedIn">
-
   <Loader v-if="loader"/>
+
+  <v-snackbar
+   top
+   :value="updateExists"
+   :timeout="-1"
+   tile
+   color="primary"
+   elevation="4"
+  >
+   Доступно новое обнавление
+   <v-btn text @click="refreshApp">
+    Обнавить
+   </v-btn>
+  </v-snackbar>
 
   <v-navigation-drawer
    :width="drawerWidth"
@@ -9,7 +22,6 @@
    :clipped="$vuetify.breakpoint.lgAndUp"
    app
   >
-
    <v-text-field
     class="mt-5 mx-3 mb-0"
     hide-details
@@ -22,11 +34,12 @@
 
    <v-list dense>
     <v-subheader>ТЕМЫ</v-subheader>
-    <v-list-item-group v-model="item" color="primary">
+    <v-list-item-group
+     v-model="item" color="primary">
      <v-list-item
       v-for="(item, i) in filterRooms"
       :key="i"
-      @click="getMessage(item.id), drawer = false"
+      @click="getMessage(item.id, room_id = item.id)"
      >
       <v-list-item-icon>
        <v-icon
@@ -65,99 +78,116 @@
       Создать чат
      </v-card-title>
      <v-container>
-      <v-row class="mx-2">
-       <v-col
-        class="align-center justify-space-between"
-        cols="12"
-       >
-        <v-row
-         align="center"
-         class="mr-0"
+
+      <v-form
+       ref="form" v-model="valid" validation enctype="multipart/form-data"
+      >
+
+       <v-row class="mx-2">
+        <v-col
+         class="align-center justify-space-between"
+         cols="12"
         >
-
-         <v-text-field
-          hide-details
-          dense
-          label="Название"
-         ></v-text-field>
-
-        </v-row>
-
-       </v-col>
-
-
-       <v-col
-        cols="12"
-       >
-        <v-row class="mr-0">
-         <v-select
-          v-model="e7"
-          :items="states"
-          label="Получатели"
-          multiple
-          chips
-          item-text="name"
-          hint="Полусатели сообщений"
-          persistent-hint
+         <v-row
+          align="center"
+          class="mr-0"
          >
-          <template #selection="{ item }">
-           <v-chip :color="item.color">{{item.name}}</v-chip>
-          </template>
-         </v-select>
-        </v-row>
 
-       </v-col>
+          <v-text-field
+           hide-details
+           dense
+           label="Название"
+           v-model="name"
+           :rules="nameRule"
+          ></v-text-field>
 
-       <v-col
-        cols="12"
-       >
-        <v-row class="mr-0">
-         <v-select
-          :items="themeType"
-          label="Тип темы"
-         ></v-select>
-        </v-row>
-       </v-col>
+         </v-row>
 
-       <v-col
-        cols="12"
-       >
+        </v-col>
+
+
+        <v-col
+         cols="12"
+        >
+         <v-row class="mr-0">
+          <v-select
+           v-model="recipients"
+           :items="getRecipients"
+           label="Получатели"
+           multiple
+           :rules="recipientsRules"
+           chips
+           item-text="title"
+           item-value="id"
+           hint="Получатели сообщений"
+           persistent-hint
+          >
+           <template #selection="{ item }">
+            <v-chip :color="item.color">{{item.title}}</v-chip>
+           </template>
+          </v-select>
+         </v-row>
+
+        </v-col>
+
+        <v-col
+         cols="12"
+        >
+         <v-row class="mr-0">
+          <v-select
+           :items="themeType"
+           item-text="text"
+           item-value="value"
+           label="Тип темы"
+           v-model="theme"
+          ></v-select>
+         </v-row>
+        </v-col>
+
+        <v-col
+         cols="12"
+        >
          <v-row class="mr-2">
           <v-textarea
            outlined
            name="input-7-4"
-           label="Outlined textarea"
-           value="The Woodman set to work at once, and so sharp was his axe that the tree was soon chopped nearly through."
+           label="Текст сообщения"
+           v-model="message"
+           :rules="messageRules"
           ></v-textarea>
          </v-row>
-       </v-col>
+        </v-col>
 
-       <v-col
-        cols="12"
-       >
+        <v-col
+         cols="12"
+        >
          <v-row class="mr-2">
           <v-file-input
            chips
+           accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
            multiple
+           v-model='file'
            label="Прикрепить фаил"
           ></v-file-input>
          </v-row>
-       </v-col>
+        </v-col>
 
 
-      </v-row>
+       </v-row>
+      </v-form>
      </v-container>
 
      <v-card-actions>
       <v-btn
-       text
        color="primary"
        @click="dialog = false"
       >Закрыть
       </v-btn>
       <v-btn
-       text
-       @click="dialog = false"
+       :disabled="!valid"
+       color="primary"
+       @click="createRoom"
+
       >Сохранить
       </v-btn>
      </v-card-actions>
@@ -182,21 +212,44 @@
     style="width: 300px"
     class="ml-0 pl-4"
    >
-    <span class="hidden-sm-and-down">Application UserID / {{user.id}}</span>
+    <span class="hidden-sm-and-down">Application UserID / {{user.id}}{{getCanFinish}}{{getCanHold}}</span>
    </v-toolbar-title>
    <v-spacer></v-spacer>
 
    <v-toolbar-items>
 
-    <v-btn
-     text
-     :icon="icon"
-     @click="onLogout"
-     style="margin-right: -12px"
-     title="Закрепить"
+    <v-menu v-if="getCanHold || getCanFinish"
+     bottom
+     left
+     tile
+     content-class="elevation-0"
     >
-     <v-icon medium>mdi-dots-horizontal</v-icon>
-    </v-btn>
+     <template v-slot:activator="{ on, attrs }">
+      <v-btn
+       dark
+       icon
+       v-bind="attrs"
+       v-on="on"
+      >
+       <v-icon>mdi-dots-vertical</v-icon>
+      </v-btn>
+     </template>
+
+     <v-list>
+      <v-list-item
+       v-for="(item, i) in holdStatus"
+       :key="i"
+       @click="setHoldStatus(item.status, item.type)"
+      >
+       <v-list-item-icon style="margin-right: 5px">
+        <v-icon dense :color="item.color" v-text="item.icon"></v-icon>
+       </v-list-item-icon>
+       <v-list-item-content>
+        <v-list-item-title v-text="item.text"></v-list-item-title>
+       </v-list-item-content>
+      </v-list-item>
+     </v-list>
+    </v-menu>
 
     <!--LogOut-->
     <v-btn text
@@ -219,10 +272,32 @@
    >
 
     <div class="chat-wrapper">
+     <div class="room-title" v-if="roomTitle">
+      <v-alert
+       v-for="(item, index) in roomTitle"
+       :key="index"
+       v-model="alertRoomTitle"
+       color="#fff"
+       dismissible
+       border="left"
+       dense
 
+       transition="scale-transition"
+      >
+       <template slot="prepend">
+        <v-icon
+         :color="item.color"
+        >
+         {{item.icon}}
+        </v-icon>
+       </template>
+       <p class="mx-1">{{item.title}}</p>
+      </v-alert>
+     </div>
      <div
       ref="chat"
       class="chat"
+      :style="userBackground"
      >
 
       <Message
@@ -234,7 +309,7 @@
      </div>
 
      <div class="chat__form">
-      <ChatForm/>
+      <ChatForm ref="chatForm" @resetForm="resetForm"/>
      </div>
     </div>
    </v-container>
@@ -248,6 +323,7 @@
  import Message from "../components/Message";
  import ChatForm from "../components/ChatForm";
  import Loader from "../components/Loader";
+ import update from "../mixin/update";
 
  export default {
   name: 'Home',
@@ -256,8 +332,59 @@
    ChatForm,
    Loader
   },
+  mixins: [update],
   computed: {
-   ...mapGetters(['user', 'getRoomMessage', 'isUserLoggedIn']),
+   ...mapGetters([
+    'user',
+    'getRoomMessage',
+    'getRecipients',
+    'getCanHold',
+    'getCanFinish'
+   ]),
+
+
+   holdStatus() {
+    let result = null
+
+    if(this.getCanFinish && !this.getCanHold){
+     result = [
+      {status: 1, type: 'close', text: 'Завершить', icon: 'mdi-check-circle-outline', color: 'red'},
+      {status: 0, type: 'close', text: 'Возобнавить', icon: 'mdi-check-circle-outline', color: 'green'}
+     ]
+    }
+
+    if(this.getCanHold && !this.getCanFinish){
+     result = [
+      {status: 1, type: 'hold', text: 'Закрепить', icon: 'mdi-lock', color: 'red'},
+      {status: 0, type: 'hold', text: 'Открепить', icon: 'mdi-lock-open', color: 'green'},
+     ]
+    }
+
+    if(this.getCanHold && this.getCanFinish){
+     result = [
+      {status: 1, type: 'close', text: 'Завершить', icon: 'mdi-close-octagon-outline', color: 'red'},
+      {status: 0, type: 'close', text: 'Возобнавить', icon: 'mdi-folder-open-outline', color: 'green'},
+      {status: 1, type: 'hold', text: 'Закрепить', icon: 'mdi-lock', color: 'red'},
+      {status: 0, type: 'hold', text: 'Открепить', icon: 'mdi-lock-open', color: 'green'},
+     ]
+    }
+
+    return result
+   },
+
+   userBackground() {
+    return `background-image: url("${this.$store.getters.userBackground}"); background-repeat: repeat;`
+   },
+
+   isUserLoggedIn() {
+    let user = this.$store.getters.isUserLoggedIn
+    if (user) {
+     return user
+    } else {
+     this.$router.push('/login')
+    }
+   },
+
    getRooms() {
     if (this.$store.getters.getRooms) {
      this.$store.getters.getRooms.forEach(el => {
@@ -265,10 +392,10 @@
        el.icon = 'mdi-clock-outline', el.color = 'orange'
       }
       if (el.finished) {
-       el.icon = 'mdi-chat-processing-outline', el.color = 'green'
+       el.icon = 'mdi-check-circle-outline', el.color = 'red'
       }
       if (!el.finished) {
-       el.icon = 'mdi-check-circle-outline', el.color = 'green'
+       el.icon = 'mdi-chat-processing-outline', el.color = 'green'
       }
       if (el.is_hold) {
        el.icon = 'mdi-lock', el.color = 'red'
@@ -300,30 +427,50 @@
      case 'sm':
       return '100%'
      case 'md':
-      return '100%'
-     case 'lg':
       return '40%'
+     case 'lg':
+      return '30%'
      case 'xl':
       return '30%'
+    }
+   },
 
+  },
+
+  watch: {
+   getRoomMessage(newValue, oldValue) {
+    if (newValue?.length !== oldValue?.length) {
+     setTimeout(() => {
+      if (this.$refs.chat) {
+       this.$refs.chat.scrollTop = this.$refs.chat.scrollHeight
+      }
+     }, 0);
     }
    },
   },
+
   data() {
    return {
-    e6: [],
-    e7: [],
-    states: [
-     {name: 'Alabama', color: 'red'},
-     {name: 'Alaska', color: 'green'},
-     {name: 'Arizona', color: 'blue'},
-     {name: 'Delaware', color: 'orange'},
-     {name: 'Florida', color: ''},
-     {name: 'Georgia', color: 'red'},
-     {name: 'Hawaii', color: 'red'},
+    recipients: [],
+    name: '',
+    message: '',
+    theme: null,
+    file: [],
+    valid: false,
+    interval: null,
+    roomTitle: null,
+    room_id: null,
+    alertRoomTitle: true,
 
+    nameRule: [v => !!v || 'Название обязательно', v => (v && v.length >= 3) || 'Мин. 3 символа '],
+    messageRules: [v => !!v || 'Сообщение обязательно', v => (v && v.length >= 3) || 'Мин. 3 символа '],
+
+    recipientsRules: [
+     v => !!v || v.length, v => (v && v.length >= 1) || 'Мин. 1 получатель'
     ],
-    themeType: ['открытая', 'закрытая'],
+
+    themeType: [{value: 1, text: 'открытая'}, {value: 0, text: 'закрытая'}],
+
     loader: true,
     searchRoom: '',
     dialog: false,
@@ -332,18 +479,116 @@
    }
   },
   methods: {
-   getMessage(id) {
-    this.$store.dispatch('getMessage', id)
+   createRoom() {
+    if (this.$refs.form.validate()) {
+
+     const room = {
+      ...this.file,
+      title: this.name,
+      description: this.message,
+      is_open: this.theme,
+      recipients: this.recipients
+     };
+     this.$store.dispatch('createRoom', room).then(() => {
+      this.$store.dispatch('getRooms')
+     })
+     this.dialog = false
+    }
    },
+
+   setHoldStatus(status, type) {
+    if (this.room_id === null) {
+     this.$store.dispatch('setError', 'Выбирете группу')
+    } else {
+     let param = {room_id: this.room_id, status: status, type: type}
+     this.$store.dispatch('satStatus', param).then(() => {
+      this.$store.dispatch('getRooms')
+     })
+    }
+   },
+
+   getMessage(id) {
+    clearInterval(this.interval)
+    this.interval = null
+    this.alertRoomTitle = true
+
+    this.$store.dispatch('getMessage', id)
+
+    if(!this.interval){
+     this.interval = setInterval(() => {
+      this.$store.dispatch('getMessage', id)
+     }, 1000 * 5)
+    }else {
+     clearInterval(this.interval)
+     this.interval = null
+    }
+
+    this.roomTitle = this.getRooms.filter(el => {
+     return el.id === id
+    })
+
+    switch (this.$vuetify.breakpoint.name) {
+     case 'xs':
+      return this.drawer = false
+     case 'sm':
+      return this.drawer = false
+     case 'md':
+      return this.drawer = false
+     case 'lg':
+      return this.drawer = true
+     case 'xl':
+      return this.drawer = true
+    }
+
+
+   },
+
    onLogout() {
     this.$store.dispatch('logOut')
      .then(this.$router.push('/login'))
    },
-  },
-  async mounted() {
-   if (this.isUserLoggedIn) {
-    await this.$store.dispatch('getRooms')
+
+   resetForm() {
+    let chatForm = document.querySelector('.chat__form')
+    let chat = document.querySelector('.chat')
+    chatForm.style.height = '124px'
+    chat.style.bottom = '124px'
+   },
+
+   resizePanel() {
+    return this.$refs.chatForm?.$el.clientHeight
    }
+  },
+  mounted() {
+
+   let chatForm = document.querySelector('.chat__form')
+   let chat = document.querySelector('.chat')
+   if (chatForm) {
+    chatForm.style.height = this.resizePanel() + 30 + 'px'
+    chat.style.bottom = this.resizePanel() + 30 + 'px'
+   }
+
+   addEventListener('change', () => {
+    chatForm.style.height = this.resizePanel() + 30 + 'px'
+    chat.style.bottom = this.resizePanel() + 30 + 'px'
+   })
+
+   addEventListener('input', () => {
+    chatForm.style.height = this.resizePanel() + 30 + 'px'
+    chat.style.bottom = this.resizePanel() + 30 + 'px'
+   })
+
+   if (this.isUserLoggedIn) {
+    this.$store.dispatch('getRooms')
+    this.$store.dispatch('getRecipients')
+    this.$store.dispatch('getBackground')
+    localStorage.setItem('localMessages', JSON.stringify([]))
+   } else {
+    this.$router.push('/login')
+   }
+
+   // document.addEventListener('contextmenu', event => event.preventDefault());
+
    this.loader = false
   }
  };
@@ -361,7 +606,7 @@
   left: 0;
   right: 0;
   padding: 1rem;
-  height: 80px;
+  height: 400px;
  }
 
  .chat {
@@ -369,20 +614,32 @@
   top: 0;
   right: 0;
   left: 0;
-  bottom: 80px;
-  padding: 1rem;
+  bottom: 400px;
+  padding: 10px 0;
   overflow-y: auto;
   color: #000;
   background-color: #e5ddd5;
  }
 
- .chat__typing {
-  position: absolute;
+ .room-title {
+  position: relative;
+  /*background-color: #fff;*/
+  z-index: 1;
+  /*width: auto;*/
   display: flex;
-  bottom: 50px;
+  justify-content: center;
+  /*opacity: .9;*/
+  padding: 7px;
  }
 
- .chat__typing-user:not(first-child) {
-  margin-left: 15px;
+ .room-title p {
+  width: 100%;
+  margin: 0px;
+  word-wrap: break-word;
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+  font-weight: 700;
  }
+
 </style>

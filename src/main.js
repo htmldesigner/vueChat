@@ -9,6 +9,7 @@ import '../sass/main.sass'
 
 Vue.config.productionTip = false
 
+
 import axios from "axios";
 Vue.prototype.$http = axios
 const token = localStorage.getItem('token')

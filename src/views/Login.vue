@@ -54,7 +54,7 @@
        </v-card-text>
        <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="#009688" tile @click="onSubmit" :loading="loading" :disabled="!valid || loading">Войти</v-btn>
+        <v-btn color="#009688" depressed tile dark @click="onSubmit" :loading="loading" :disabled="!valid || loading">Войти</v-btn>
        </v-card-actions>
       </v-card>
      </v-col>

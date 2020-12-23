@@ -3,11 +3,16 @@ import axios from 'axios'
 
 export default {
  state: {
-  user: null
+  user: null,
+  userBackground: null
  },
  mutations: {
   SET_USER(state, payload) {
    state.user = payload
+  },
+
+  SET_USER_BACKGROUND(state, payload) {
+   state.userBackground = payload
   }
  },
 
@@ -25,9 +30,9 @@ export default {
     commit('SET_USER', user)
     commit('setLoading', false)
    } catch (error) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    delete axios.defaults.headers.common['Authorization']
+    // localStorage.removeItem('token')
+    // localStorage.removeItem('user')
+    // delete axios.defaults.headers.common['Authorization']
     commit('setLoading', false)
     commit('setError', 'Неверный логин или пароль.')
     throw error
@@ -43,10 +48,24 @@ export default {
     }
    }catch (e) {
     commit('setLoading', false)
-    commit('setError', 'ль.')
+    commit('setError', 'Неверный логин или пароль.')
     throw error
    }
   },
+
+  async getBackground({commit}) {
+   try {
+    const response = await api.getBackground()
+    commit('SET_USER_BACKGROUND', response.data)
+    console.log(response.data)
+   }catch (e) {
+    commit('setLoading', false)
+    commit('setError')
+    throw error
+   }
+  },
+
+
 
   logOut({commit}) {
    localStorage.removeItem('token')
@@ -58,6 +77,9 @@ export default {
  getters: {
   user(state) {
    return state.user
+  },
+  userBackground(state) {
+   return state.userBackground
   },
   isUserLoggedIn(state) {
    return state.user !== null

@@ -1,4 +1,4 @@
 export default function (route) {
- const apiUrl = "/api"
+ const apiUrl = "system/api"
  return apiUrl + route
 }

@@ -54,7 +54,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #005d8d;
+  background: #009688;
   margin: -4px 0 0 -4px;
  }
 
